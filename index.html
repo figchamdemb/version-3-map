@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road and House Mapping Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCmB2rfNztmwSYEtdGlKkXOOM7cKlVI_aY&libraries=places&callback=initMap" async defer></script>
+    <style>
+        .road-label {
+            color: #000000;
+            background-color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        /* Add these new styles for the modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px;
+            border-radius: 8px;
+        }
+        /* Add this new style for alternating row colors */
+        #dataTableBody tr:nth-child(even) {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Rest of your HTML content -->
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+    <!-- Header with login buttons -->
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-3xl font-bold">Road and House Mapping Tool</h1>
+        <div>
+            <button id="loginBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Login</button>
+            <button id="createAccountBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ml-2">Create Account</button>
+            <button id="syncData" class="bg-green-500 text-white p-2 rounded ml-2">Sync with Google Sheets</button>
+        </div>
+    </div>
+
+    <!-- Search and location controls - KEEP ONLY THIS ONE -->
+    <div class="mb-4">
+        <input id="searchInput" type="text" placeholder="Search location or enter coordinates" class="w-full p-2 border rounded">
+        <button id="searchButton" class="mt-2 bg-blue-500 text-white p-2 rounded">Search</button>
+        <button id="getCurrentLocation" class="mt-2 bg-green-500 text-white p-2 rounded">Get My Location</button>
+    </div>
+
+    <!-- Remove this duplicate section -->
+    <!-- <div class="mb-4">
+        <input id="searchInput" type="text" placeholder="Search location or enter coordinates" class="w-full p-2 border rounded">
+        <button id="searchButton" class="mt-2 bg-blue-500 text-white p-2 rounded">Search</button>
+        <button id="getCurrentLocation" class="mt-2 bg-green-500 text-white p-2 rounded">Get My Location</button>
+    </div> -->
+
+    <!-- Keep the rest of your HTML as is -->
+    <div class="mb-4">
+        <button id="createRoad" class="bg-yellow-500 text-white p-2 rounded">Create Road</button>
+        <button id="createHouse" class="bg-purple-500 text-white p-2 rounded ml-2">Create House</button>
+        <button id="exportData" class="bg-red-500 text-white p-2 rounded ml-2">Export Data</button>
+    </div>
+    <!-- ... rest of your HTML ... -->
+</div>
+
+        <div id="roadInputs" class="mb-4 hidden">
+            <input id="roadName" type="text" placeholder="Enter road name" class="p-2 border rounded">
+            <select id="roadType" class="p-2 border rounded ml-2">
+                <option value="single">Single</option>
+                <option value="auto">Auto Increment</option>
+            </select>
+            <button id="saveRoad" class="bg-green-500 text-white p-2 rounded ml-2">Save Road</button>
+            <button id="endRoad" class="bg-red-500 text-white p-2 rounded ml-2">End Road</button>
+        </div>
+
+        <div id="houseInputs" class="mb-4 hidden">
+            <input id="houseNumber" type="number" placeholder="Enter house number" class="p-2 border rounded">
+            <button id="saveHouse" class="bg-green-500 text-white p-2 rounded ml-2">Save House</button>
+            <button id="endHouse" class="bg-red-500 text-white p-2 rounded ml-2">End House</button>
+        </div>
+
+        <div id="map" class="w-full h-96 mb-4"></div>
+
+       
+    <div id="dataTable" class="bg-white p-4 rounded-lg shadow-md">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100 border-b border-gray-200">
+                        <th class="p-3 font-semibold text-gray-700">#</th>
+                        <th class="p-3 font-semibold text-gray-700">Type</th>
+                        <th class="p-3 font-semibold text-gray-700">Name</th>
+                        <th class="p-3 font-semibold text-gray-700">Coordinates</th>
+                        <th class="p-3 font-semibold text-gray-700">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                    <!-- Table rows will be dynamically inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add these new modal divs -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-4">Login</h2>
+            <input type="email" id="loginEmail" placeholder="Email" class="w-full p-2 mb-2 border rounded">
+            <input type="password" id="loginPassword" placeholder="Password" class="w-full p-2 mb-4 border rounded">
+            <button id="loginSubmit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded w-full">Login</button>
+        </div>
+    </div>
+
+    <div id="createAccountModal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-4">Create Account</h2>
+            <input type="email" id="createEmail" placeholder="Email" class="w-full p-2 mb-2 border rounded">
+            <input type="password" id="createPassword" placeholder="Password" class="w-full p-2 mb-2 border rounded">
+            <input type="password" id="confirmPassword" placeholder="Confirm Password" class="w-full p-2 mb-4 border rounded">
+            <button id="createAccountSubmit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded w-full">Create Account</button>
+        </div>
+    </div>
+
+<script>
+    // Your existing JavaScript code here
+
+    // Add this new code for login and create account functionality
+    document.getElementById('loginBtn').addEventListener('click', function() {
+        document.getElementById('loginModal').style.display = 'block';
+    });
+
+    document.getElementById('createAccountBtn').addEventListener('click', function() {
+        document.getElementById('createAccountModal').style.display = 'block';
+    });
+
+    document.getElementById('loginSubmit').addEventListener('click', function() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        // Implement login logic here
+        console.log('Login attempt:', email, password);
+        document.getElementById('loginModal').style.display = 'none';
+    });
+
+    document.getElementById('createAccountSubmit').addEventListener('click', function() {
+        const email = document.getElementById('createEmail').value;
+        const password = document.getElementById('createPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        if (password !== confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+        // Implement account creation logic here
+        console.log('Create account attempt:', email, password);
+        document.getElementById('createAccountModal').style.display = 'none';
+    });
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        if (event.target.className === 'modal') {
+            event.target.style.display = 'none';
+        }
+    }
+
+// Add at the top of your script section, with your other variables
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4Mj0qh0pL_19rLrlJ15Q1u8j_EsBOOCEl-lnOTAvHw8tTpYF23qUZW-m9eIartGwsrg/exec'; // Replace with your actual Google Apps Script URL
+let syncInProgress = false;
+
+
+
+    // Your existing JavaScript code continues here
+   let map;
+let currentRoad = null;
+let currentHouse = null;
+let data = [];
+let roads = []; // Array to store road data
+let roadMarkers = new Map();
+let markers = []; // Add this line for house markers
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: {lat: 0, lng: 0},
+            zoom: 2
+        });
+
+        const searchInput = document.getElementById('searchInput');
+        const searchBox = new google.maps.places.SearchBox(searchInput);
+
+        map.addListener('bounds_changed', function() {
+            searchBox.setBounds(map.getBounds());
+        });
+
+        searchBox.addListener('places_changed', function() {
+            const places = searchBox.getPlaces();
+            if (places.length === 0) return;
+
+            const bounds = new google.maps.LatLngBounds();
+            places.forEach(function(place) {
+                if (!place.geometry) return;
+
+                if (place.geometry.viewport) {
+                    bounds.union(place.geometry.viewport);
+                } else {
+                    bounds.extend(place.geometry.location);
+                }
+            });
+            map.fitBounds(bounds);
+        });
+    }
+
+    // The rest of your existing JavaScript code...
+    // (Keep all the existing functions and event listeners)
+document.getElementById('searchButton').addEventListener('click', function() {
+        const input = document.getElementById('searchInput').value;
+        if (isCoordinate(input)) {
+            const [lat, lng] = input.split(',').map(parseFloat);
+            map.setCenter({lat, lng});
+            map.setZoom(15);
+        } else {
+            // The Places API will handle this case
+        }
+    });
+
+
+// Modify your 'Get My Location' event listener
+document.getElementById('getCurrentLocation').addEventListener('click', function() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const pos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+
+            // Create or update the marker
+            if (userMarker) {
+                userMarker.setPosition(pos);
+            } else {
+                userMarker = new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    label: {
+                        text: "You're Here",
+                        color: 'white',
+                        fontWeight: 'bold'
+                    }
+                });
+            }
+
+            // Set a fixed small radius, e.g., 10 meters
+            const smallRadius = 0.2; // Radius in meters
+
+            // Create or update the accuracy circle
+            if (userCircle) {
+                userCircle.setCenter(pos);
+                userCircle.setRadius(smallRadius);
+            } else {
+                userCircle = new google.maps.Circle({
+                    strokeColor: '#4285F4',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: '#4285F4',
+                    fillOpacity: 0.35,
+                    map: map,
+                    center: pos,
+                    radius: smallRadius
+                });
+            }
+
+            map.setCenter(pos);
+            map.setZoom(18); // Zoom in closer for better visibility
+        });
+    }
+});
+
+
+    document.getElementById('createRoad').addEventListener('click', function() {
+        document.getElementById('roadInputs').classList.remove('hidden');
+        document.getElementById('houseInputs').classList.add('hidden');
+    });
+
+    document.getElementById('createHouse').addEventListener('click', function() {
+        document.getElementById('houseInputs').classList.remove('hidden');
+        document.getElementById('roadInputs').classList.add('hidden');
+    });
+
+    document.getElementById('saveRoad').addEventListener('click', startNewRoad);
+
+    document.getElementById('endRoad').addEventListener('click', function() {
+        if (currentRoad) {
+            addRoadPoint(null, true);
+            saveData(currentRoad);
+            currentRoad = null;
+            google.maps.event.clearListeners(map, 'click');
+            startNewRoad(); // Automatically start a new road
+        }
+    });
+
+ // === REPLACE WITH THIS UPDATED VERSION ===
+function startNewRoad() {
+    const roadName = document.getElementById('roadName').value;
+    const roadType = document.getElementById('roadType').value;
+    if (!roadName) return;
+
+    const roadId = 'road-' + Date.now();
+    
+    // Store the initial road name
+    const initialRoadName = roadName;
+
+    currentRoad = {
+        id: roadId,
+        name: initialRoadName, // Use the initial name
+        type: roadType,
+        coordinates: [],
+        markers: [],
+        initialName: initialRoadName, // Store initial name for reference
+        polyline: new google.maps.Polyline({
+            geodesic: true,
+            strokeColor: '#FF0000',
+            strokeOpacity: 1.0,
+            strokeWeight: 2,
+            map: map
+        })
+    };
+
+    google.maps.event.clearListeners(map, 'click');
+    map.addListener('click', addRoadPoint);
+}
+
+    document.getElementById('saveHouse').addEventListener('click', function() {
+        const houseNumber = document.getElementById('houseNumber').value;
+        if (!houseNumber) return;
+
+        currentHouse = {
+            number: parseInt(houseNumber),
+            coordinates: null
+        };
+
+        map.addListener('click', addHousePoint);
+    });
+
+    document.getElementById('endHouse').addEventListener('click', function() {
+        currentHouse = null;
+        google.maps.event.clearListeners(map, 'click');
+    });
+
+
+
+let userMarker = null;
+let userCircle = null;
+
+
+
+
+
+
+// === REPLACE WITH THIS UPDATED VERSION ===
+function addRoadPoint(event, isEnd = false) {
+    if (!currentRoad) return;
+
+    let lat, lng;
+    if (event) {
+        lat = event.latLng.lat();
+        lng = event.latLng.lng();
+    } else {
+        const lastPoint = currentRoad.coordinates[currentRoad.coordinates.length - 1];
+        lat = lastPoint.lat;
+        lng = lastPoint.lng;
+    }
+
+    currentRoad.coordinates.push({lat, lng});
+
+    if (currentRoad.coordinates.length === 1 || isEnd) {
+        let label = currentRoad.coordinates.length === 1 ? 
+            `Start- ${currentRoad.initialName}` : `End- ${currentRoad.initialName}`;
+        
+        const marker = new google.maps.Marker({
+            position: {lat, lng},
+            map: map,
+            label: {
+                text: label,
+                className: 'road-label'
+            }
+        });
+
+        // Add double-click listener for editing
+        marker.addListener('dblclick', function() {
+    // Get the road name from the marker's label by removing 'Start-' or 'End-'
+    const oldName = marker.getLabel().text.replace(/(Start-|End-)\s*/, '');
+    const newName = prompt('Enter new road name:', oldName);
+    
+    if (newName !== null && newName !== '' && newName !== oldName) {
+        // Find all markers for this road
+        const relatedMarkers = markers.filter(m => {
+            if (m.getLabel && m.getLabel().text) {
+                const markerText = m.getLabel().text;
+                return markerText.includes(oldName) && 
+                       (markerText.startsWith('Start-') || markerText.startsWith('End-'));
+            }
+            return false;
+        });
+
+        // Update data array
+        const dataIndex = data.findIndex(item => 
+            item.type === 'Road' && item.name === oldName
+        );
+        if (dataIndex !== -1) {
+            data[dataIndex].name = newName;
+        }
+
+        // Update road in roads array and all its markers
+        const roadIndex = roads.findIndex(road => road.name === oldName);
+        if (roadIndex !== -1) {
+            roads[roadIndex].name = newName;
+
+            // Update all markers for this road
+            roads[roadIndex].markers.forEach(m => {
+                const markerLabel = m.getLabel().text;
+                let newLabel;
+                
+                if (markerLabel.startsWith('Start-')) {
+                    newLabel = `Start- ${newName}`;
+                } else if (markerLabel.startsWith('End-')) {
+                    newLabel = `End- ${newName}`;
+                }
+
+                m.setLabel({
+                    text: newLabel,
+                    className: 'road-label'
+                });
+            });
+        }
+
+        // Also update any matching markers in the main markers array
+        relatedMarkers.forEach(m => {
+            const currentLabel = m.getLabel().text;
+            let newLabel;
+            
+            if (currentLabel.startsWith('Start-')) {
+                newLabel = `Start- ${newName}`;
+            } else if (currentLabel.startsWith('End-')) {
+                newLabel = `End- ${newName}`;
+            }
+
+            m.setLabel({
+                text: newLabel,
+                className: 'road-label'
+            });
+        });
+
+        // If this is the current road being created, update its name
+        if (currentRoad && currentRoad.name === oldName) {
+            currentRoad.name = newName;
+            currentRoad.initialName = newName;
+        }
+
+        // Update data table and save changes
+        updateDataTable();
+        if (dataIndex !== -1) {
+            sendToGoogleSheets(data[dataIndex]);
+        }
+    }
+});
+
+        // Store marker references
+        marker.initialLabel = label;
+        markers.push(marker);
+        currentRoad.markers.push(marker);
+    }
+
+    const path = currentRoad.polyline.getPath();
+    path.push(new google.maps.LatLng(lat, lng));
+
+    // Only increment the road name for the next road, not the current one
+    if (isEnd && currentRoad.type === 'auto') {
+        const nextRoadName = incrementRoadName(currentRoad.initialName);
+        document.getElementById('roadName').value = nextRoadName;
+    }
+}
+
+function editRoadName(oldName) {
+    const newName = prompt('Enter new road name:', oldName);
+    if (newName !== null && newName !== '' && newName !== oldName) {
+        // Update the road name in the data array
+        const dataIndex = data.findIndex(item => item.type === 'Road' && item.name === oldName);
+        if (dataIndex !== -1) {
+            data[dataIndex].name = newName;
+        }
+
+        // Update the road name in the roads array
+        const roadIndex = roads.findIndex(road => road.name === oldName);
+        if (roadIndex !== -1) {
+            roads[roadIndex].name = newName;
+
+            // Update the markers
+            roads[roadIndex].markers.forEach(marker => {
+                const currentLabel = marker.getLabel().text;
+                let newLabel;
+                if (currentLabel.startsWith('Start-')) {
+                    newLabel = `Start- ${newName}`;
+                } else if (currentLabel.startsWith('End-')) {
+                    newLabel = `End- ${newName}`;
+                } else {
+                    newLabel = currentLabel.replace(oldName, newName);
+                }
+                marker.setLabel({
+                    text: newLabel,
+                    className: 'road-label'
+                });
+            });
+        }
+
+        // Update all markers in the main markers array
+        markers.forEach(marker => {
+            if (marker.getLabel) {
+                const currentLabel = marker.getLabel().text;
+                if (currentLabel.includes(oldName)) {
+                    let newLabel;
+                    if (currentLabel.startsWith('Start-')) {
+                        newLabel = `Start- ${newName}`;
+                    } else if (currentLabel.startsWith('End-')) {
+                        newLabel = `End- ${newName}`;
+                    } else {
+                        newLabel = currentLabel.replace(oldName, newName);
+                    }
+                    marker.setLabel({
+                        text: newLabel,
+                        className: 'road-label'
+                    });
+                }
+            }
+        });
+
+        // Update the data table
+        updateDataTable();
+
+        // Send updated data to Google Sheets
+        if (dataIndex !== -1) {
+            sendToGoogleSheets(data[dataIndex]);
+        }
+    }
+}
+
+    function incrementRoadName(name) {
+        const match = name.match(/^(.+?)(\d+)$/);
+        if (match) {
+            const prefix = match[1];
+            const number = parseInt(match[2]) + 1;
+            return `${prefix}${number}`;
+        }
+        return name + ' 1';
+    }
+
+ // Modify the updateData function
+    function updateData(number, labels, coordinates) {
+        const index = data.findIndex(item => item.name === number.toString());
+        if (index !== -1) {
+            data[index].name = labels;
+            data[index].coordinates = JSON.stringify(coordinates);
+            updateDataTable();
+            sendToGoogleSheets(data[index]);
+        } else {
+            // If the item doesn't exist, add it to the data array
+            data.push({
+                type: 'House',
+                name: labels,
+                coordinates: JSON.stringify(coordinates)
+            });
+            updateDataTable();
+            sendToGoogleSheets(data[data.length - 1]);
+        }
+    }
+
+// Modify the addHousePoint function
+function addHousePoint(event) {
+    if (!currentHouse) return;
+
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+    currentHouse.coordinates = {lat, lng};
+
+    const marker = new google.maps.Marker({
+        position: event.latLng,
+        map: map,
+        label: {
+            text: currentHouse.number.toString(),
+            color: 'black',
+            fontWeight: 'bold',
+            fontSize: '14px'
+        },
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: 'yellow',
+            fillOpacity: 1,
+            strokeWeight: 0,
+            scale: 20
+        }
+    });
+
+
+
+// Add sync function
+async function syncWithGoogleSheets() {
+    if (syncInProgress) return;
+    
+    syncInProgress = true;
+    const syncButton = document.getElementById('syncData');
+    const originalText = syncButton.textContent;
+    syncButton.textContent = 'Syncing...';
+    syncButton.disabled = true;
+
+    try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'sync',
+                items: data
+            })
+        });
+        
+        showSyncSuccess();
+    } catch (error) {
+        console.error('Sync error:', error);
+        showSyncError();
+    } finally {
+        syncInProgress = false;
+        syncButton.textContent = originalText;
+        syncButton.disabled = false;
+    }
+}
+
+// Add with your other event listeners
+document.getElementById('syncData').addEventListener('click', syncWithGoogleSheets);
+
+// Add success notification function
+function showSyncSuccess() {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+    notification.textContent = 'Data synced successfully!';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+// Add this new function for sync notifications
+function showSyncError() {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg';
+    notification.textContent = 'Error syncing with Google Sheets. Please try again.';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+
+
+    // Store the marker in the markers array
+    markers.push(marker);
+
+    // Add initial house data to the data array
+    const initialData = {
+        type: 'House',
+        name: currentHouse.number.toString(),
+        coordinates: JSON.stringify({lat, lng})
+    };
+    data.push(initialData);
+    updateDataTable(); // Update table with initial house
+    sendToGoogleSheets(initialData);
+
+    marker.addListener('dblclick', function() {
+    const existingLabels = marker.getLabel().text.split(', ');
+    const baseNumber = existingLabels[0];
+
+    // Create dialog overlay
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    overlay.style.zIndex = '1000';
+
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.style.position = 'fixed';
+    dialog.style.top = '50%';
+    dialog.style.left = '50%';
+    dialog.style.transform = 'translate(-50%, -50%)';
+    dialog.style.backgroundColor = 'white';
+    dialog.style.padding = '20px';
+    dialog.style.borderRadius = '8px';
+    dialog.style.zIndex = '1001';
+    dialog.style.minWidth = '300px';
+
+    // Create dialog content
+    dialog.innerHTML = `
+        <h3 style="margin-bottom: 15px; font-weight: bold;">Edit House Number</h3>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px;">Base Number:</label>
+            <input type="text" id="baseNumberInput" value="${baseNumber}" style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px;">Additional Labels (comma-separated):</label>
+            <input type="text" id="additionalLabelsInput" value="${existingLabels.slice(1).join(', ')}" style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div style="text-align: right; margin-top: 20px;">
+            <button id="cancelEdit" style="margin-right: 10px; padding: 5px 15px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5;">Cancel</button>
+            <button id="saveEdit" style="padding: 5px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px;">Save</button>
+        </div>
+    `;
+
+    // Add dialog and overlay to document
+    document.body.appendChild(overlay);
+    document.body.appendChild(dialog);
+
+    // Handle save
+    document.getElementById('saveEdit').addEventListener('click', function() {
+        const newBaseNumber = document.getElementById('baseNumberInput').value;
+        const additionalLabels = document.getElementById('additionalLabelsInput').value
+            .split(',')
+            .map(label => label.trim())
+            .filter(label => label !== '');
+
+        // Combine all labels
+        const updatedLabels = [newBaseNumber, ...additionalLabels];
+        const labelText = updatedLabels.join(', ');
+
+        // Update marker appearance
+        const scale = Math.max(20, 15 + labelText.length * 2.5);
+        const fontSize = Math.min(14, 200 / labelText.length);
+        marker.setLabel({
+            text: labelText,
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: `${fontSize}px`
+        });
+        marker.setIcon({
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: 'green',
+            fillOpacity: 1,
+            strokeWeight: 0,
+            scale: scale
+        });
+
+        // Update data array and refresh table
+        const index = data.findIndex(item => 
+            item.type === 'House' && 
+            item.name === existingLabels.join(', ')
+        );
+        
+        if (index !== -1) {
+            data[index].name = labelText;
+            updateDataTable();
+            sendToGoogleSheets(data[index]);
+        }
+
+        // Clean up
+        document.body.removeChild(dialog);
+        document.body.removeChild(overlay);
+    });
+
+    // Handle cancel
+    document.getElementById('cancelEdit').addEventListener('click', function() {
+        document.body.removeChild(dialog);
+        document.body.removeChild(overlay);
+    });
+
+    // Handle clicking outside dialog
+    overlay.addEventListener('click', function() {
+        document.body.removeChild(dialog);
+        document.body.removeChild(overlay);
+    });
+});
+
+    currentHouse.number++;
+    document.getElementById('houseNumber').value = currentHouse.number;
+}
+   // === REPLACE WITH THIS UPDATED VERSION ===
+function saveData(item) {
+    if (item.coordinates) {
+        const newItem = {
+            type: item.initialName ? 'Road' : 'House',
+            name: item.initialName || item.number, // Use initialName for roads
+            coordinates: JSON.stringify(item.coordinates)
+        };
+        data.push(newItem);
+
+        if (item.initialName) {
+            const roadData = {
+                id: item.id,
+                name: item.initialName, // Use initialName
+                coordinates: item.coordinates,
+                polyline: item.polyline,
+                markers: item.markers
+            };
+            roads.push(roadData);
+        }
+
+        updateDataTable();
+        sendToGoogleSheets(newItem);
+    }
+}
+
+    function updateData(number, labels, coordinates) {
+        const index = data.findIndex(item => item.name === number.toString());
+        if (index !== -1) {
+            data[index].name = labels;
+            data[index].coordinates = JSON.stringify(coordinates);
+            updateDataTable();
+            sendToGoogleSheets(data[index]);
+        }
+    }
+
+function updateDataTable() {
+    const tbody = document.getElementById('dataTableBody');
+    tbody.innerHTML = '';
+    data.forEach((item, index) => {
+        const row = tbody.insertRow();
+        row.className = 'border-b border-gray-200 hover:bg-gray-50 transition duration-150';
+        
+        const cells = [
+            index + 1,
+            item.type,
+            item.name,
+            item.coordinates,
+            createActionButtons(index)
+        ];
+
+        cells.forEach((cellContent, cellIndex) => {
+            const cell = row.insertCell(cellIndex);
+            cell.className = 'p-3';
+            
+            if (cellIndex === 4) { // Action column
+                cell.appendChild(cellContent);
+            } else {
+                cell.textContent = cellContent;
+            }
+        });
+    });
+}
+
+function editDataItem(index) {
+    const item = data[index];
+    if (item.type === 'House') {
+        const newNumber = prompt('Enter new house number:', item.name);
+        if (newNumber !== null && newNumber !== '') {
+            // Update the data array
+            data[index].name = newNumber;
+
+            // Update the marker on the map
+            const houseMarker = markers.find(marker => 
+                marker instanceof google.maps.Marker && 
+                marker.getLabel() && 
+                marker.getLabel().text.split(', ')[0] === item.name
+            );
+            if (houseMarker) {
+                houseMarker.setLabel({
+                    text: newNumber,
+                    color: 'black',
+                    fontWeight: 'bold',
+                    fontSize: '14px'
+                });
+            }
+
+            // Update the data table
+            updateDataTable();
+
+            // Send updated data to Google Sheets
+            sendToGoogleSheets(data[index]);
+        }
+    } else if (item.type === 'Road') {
+        const newName = prompt('Enter new road name:', item.name);
+        if (newName !== null && newName !== '') {
+            // Update the data array
+            data[index].name = newName;
+
+            // Update the road in the roads array
+            const roadIndex = roads.findIndex(road => road.name === item.name);
+            if (roadIndex !== -1) {
+                roads[roadIndex].name = newName;
+                
+                // Update markers
+                roads[roadIndex].markers.forEach(marker => {
+                    const currentLabel = marker.getLabel().text;
+                    let newLabel;
+                    if (currentLabel.startsWith('Start-')) {
+                        newLabel = `Start- ${newName}`;
+                    } else if (currentLabel.startsWith('End-')) {
+                        newLabel = `End- ${newName}`;
+                    } else {
+                        newLabel = currentLabel.replace(item.name, newName);
+                    }
+                    marker.setLabel({
+                        text: newLabel,
+                        className: 'road-label'
+                    });
+                });
+            }
+
+            // Update the data table
+            updateDataTable();
+
+            // Send updated data to Google Sheets
+            sendToGoogleSheets(data[index]);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+function editRoadName(oldName) {
+    const newName = prompt('Enter new road name:', oldName);
+    if (newName !== null && newName !== '' && newName !== oldName) {
+        // Update the road name in the data array
+        const dataIndex = data.findIndex(item => item.type === 'Road' && item.name === oldName);
+        if (dataIndex !== -1) {
+            data[dataIndex].name = newName;
+        }
+
+        // Update the road name in the roads array
+        const roadIndex = roads.findIndex(road => road.name === oldName);
+        if (roadIndex !== -1) {
+            roads[roadIndex].name = newName;
+
+            // Update the markers
+            roads[roadIndex].markers.forEach(marker => {
+                const currentLabel = marker.getLabel().text;
+                let newLabel;
+                if (currentLabel.startsWith('Start-')) {
+                    newLabel = `Start- ${newName}`;
+                } else if (currentLabel.startsWith('End-')) {
+                    newLabel = `End- ${newName}`;
+                } else {
+                    newLabel = currentLabel.replace(oldName, newName);
+                }
+                marker.setLabel({
+                    text: newLabel,
+                    className: 'road-label'
+                });
+            });
+        }
+
+        // Update all markers in the main markers array
+        markers.forEach(marker => {
+            if (marker.getLabel) {
+                const currentLabel = marker.getLabel().text;
+                if (currentLabel.includes(oldName)) {
+                    let newLabel;
+                    if (currentLabel.startsWith('Start-')) {
+                        newLabel = `Start- ${newName}`;
+                    } else if (currentLabel.startsWith('End-')) {
+                        newLabel = `End- ${newName}`;
+                    } else {
+                        newLabel = currentLabel.replace(oldName, newName);
+                    }
+                    marker.setLabel({
+                        text: newLabel,
+                        className: 'road-label'
+                    });
+                }
+            }
+        });
+
+        // Update the data table
+        updateDataTable();
+
+        // Send updated data to Google Sheets
+        if (dataIndex !== -1) {
+            sendToGoogleSheets(data[dataIndex]);
+        }
+    }
+}
+function updateRoadMarker(position, label, map) {
+    const existingMarker = findMarkerAtPosition(position);
+    if (existingMarker) {
+        existingMarker.setLabel({
+            text: label,
+            className: 'road-label'
+        });
+    } else {
+        new google.maps.Marker({
+            position: position,
+            map: map,
+            label: {
+                text: label,
+                className: 'road-label'
+            }
+        });
+    }
+}
+
+function findMarkerAtPosition(position) {
+    for (let marker of markers) {
+        if (marker instanceof google.maps.Marker && 
+            marker.getPosition().equals(position)) {
+            return marker;
+        }
+    }
+    return null;
+}
+
+    // Add this new function
+   function createActionButtons(index) {
+    const container = document.createElement('div');
+    container.className = 'flex space-x-2';
+
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Edit';
+    editButton.className = 'bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded text-sm transition duration-300';
+    editButton.onclick = () => editDataItem(index);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete';
+    deleteButton.className = 'bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded text-sm transition duration-300';
+    deleteButton.onclick = () => deleteDataItem(index);
+
+    container.appendChild(editButton);
+    container.appendChild(deleteButton);
+
+    return container;
+}
+   // Replace your existing deleteDataItem function with this one
+function deleteDataItem(index) {
+    const itemToDelete = data[index];
+
+    if (itemToDelete.type === 'Road') {
+        // Find the road in roads array
+        const roadToDelete = roads.find(road => road.name === itemToDelete.name);
+        
+        if (roadToDelete) {
+            // Remove polyline
+            roadToDelete.polyline.setMap(null);
+            
+            // Remove all markers for this road
+            if (roadToDelete.markers) {
+                roadToDelete.markers.forEach(marker => {
+                    marker.setMap(null);
+                    // Remove from main markers array
+                    markers = markers.filter(m => m !== marker);
+                });
+            }
+        }
+
+        // Also find and remove any other markers for this road
+        markers = markers.filter(marker => {
+            if (marker instanceof google.maps.Marker && marker.getLabel()) {
+                const label = marker.getLabel().text;
+                if (label.includes(itemToDelete.name) && 
+                    (label.startsWith('Start-') || label.startsWith('End-'))) {
+                    marker.setMap(null);
+                    return false;
+                }
+            }
+            return true;
+        });
+        
+        // Remove from roads array
+        roads = roads.filter(road => road.name !== itemToDelete.name);
+
+        // Remove from data array
+        data = data.filter((item, i) => {
+            if (item.type === 'Road' && item.name === itemToDelete.name) {
+                return false;
+            }
+            return true;
+        });
+    } else if (itemToDelete.type === 'House') {
+        // Get base number and all possible variations
+        const itemName = itemToDelete.name.toString();
+        const baseNumber = itemName.split(', ')[0];
+        
+        // Remove all related markers from the map
+        markers.forEach(marker => {
+            if (marker instanceof google.maps.Marker && marker.getLabel()) {
+                const markerLabels = marker.getLabel().text.split(', ');
+                const markerBaseNumber = markerLabels[0];
+                
+                // If this marker matches our base number, remove it
+                if (markerBaseNumber === baseNumber) {
+                    marker.setMap(null);
+                }
+            }
+        });
+
+        // Clean up markers array
+        markers = markers.filter(marker => {
+            if (marker instanceof google.maps.Marker && marker.getLabel()) {
+                const markerLabels = marker.getLabel().text.split(', ');
+                const markerBaseNumber = markerLabels[0];
+                return markerBaseNumber !== baseNumber;
+            }
+            return true;
+        });
+
+        // Remove all related entries from data array
+        data = data.filter((item, i) => {
+            if (i === index) return false; // Remove clicked item
+            if (item.type !== 'House') return true; // Keep non-house items
+            const itemBaseNumber = item.name.toString().split(', ')[0];
+            return itemBaseNumber !== baseNumber; // Remove items with same base number
+        });
+    }
+
+    // Update the data table
+    updateDataTable();
+}
+// Replace your existing sendToGoogleSheets function
+// Update your sendToGoogleSheets function to include console logs
+// Sync-related functions
+async function sendToGoogleSheets(item) {
+    try {
+        console.log('Sending item to sheets:', item);
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'cors', // Change this from 'no-cors' to 'cors'
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'sync',
+                items: [item]
+            })
+        });
+        const result = await response.json();
+        console.log('Server response:', result);
+        if (result.status === 'success') {
+            showSyncSuccess();
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        console.error('Sync error:', error);
+        showSyncError();
+    }
+}
+async function syncWithGoogleSheets() {
+    if (syncInProgress) return;
+    
+    syncInProgress = true;
+    const syncButton = document.getElementById('syncData');
+    const originalText = syncButton.textContent;
+    syncButton.textContent = 'Syncing...';
+    syncButton.disabled = true;
+
+    try {
+        console.log('All data being synced:', data);
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'sync',
+                items: data
+            })
+        });
+        showSyncSuccess();
+    } catch (error) {
+        console.error('Sync error:', error);
+        showSyncError();
+    } finally {
+        syncInProgress = false;
+        syncButton.textContent = originalText;
+        syncButton.disabled = false;
+    }
+}
+
+function showSyncSuccess() {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+    notification.textContent = 'Data synced successfully!';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+function showSyncError() {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg';
+    notification.textContent = 'Error syncing with Google Sheets. Please try again.';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+// Export functionality
+document.getElementById('exportData').addEventListener('click', function() {
+    const csv = data.map(row => Object.values(row).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "exported_data.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+});
+
+// Utility functions
+function isCoordinate(str) {
+    const parts = str.split(',');
+    return parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]));
+}
+
+// Event listeners
+document.getElementById('syncData').addEventListener('click', syncWithGoogleSheets);
+
+// Initialize map on load
+window.onload = function() {
+    initMap();
+    console.log('Window loaded, map initialized');
+}
+</script>
+</body>
+</html>
